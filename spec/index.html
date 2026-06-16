@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Device Spec Detector</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #11111a;
+    --card: #16161f;
+    --border: #1e1e2e;
+    --accent: #7c6af7;
+    --accent2: #3ecfcf;
+    --accent3: #f7a26a;
+    --text: #e2e2ef;
+    --muted: #6e6e8a;
+    --green: #4ade80;
+    --red: #f87171;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Space Grotesk', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    padding: 24px 16px 48px;
+  }
+
+  header {
+    max-width: 900px;
+    margin: 0 auto 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+
+  .logo-text { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; }
+  .logo-text span { color: var(--accent); }
+
+  #scan-btn {
+    background: linear-gradient(135deg, var(--accent), #5b4fcf);
+    border: none;
+    color: #fff;
+    padding: 10px 22px;
+    border-radius: 8px;
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity .15s, transform .1s;
+    display: flex; align-items: center; gap: 7px;
+  }
+  #scan-btn:hover { opacity: .88; transform: translateY(-1px); }
+  #scan-btn:active { transform: translateY(0); }
+
+  .pulse {
+    width: 8px; height: 8px;
+    background: #fff;
+    border-radius: 50%;
+    animation: pulse 1.4s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50% { opacity: .4; transform: scale(0.6); }
+  }
+
+  main {
+    max-width: 900px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color .2s;
+  }
+  .card:hover { border-color: #2e2e45; }
+
+  .card.wide { grid-column: 1 / -1; }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 14px;
+  }
+
+  .card-icon {
+    font-size: 16px;
+    width: 30px; height: 30px;
+    background: var(--surface);
+    border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .card-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+  }
+
+  .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 5px 0;
+    border-bottom: 1px solid #1a1a28;
+    gap: 12px;
+  }
+  .row:last-child { border-bottom: none; }
+
+  .row-label {
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .row-value {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
+    text-align: right;
+    word-break: break-all;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 99px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: var(--mono);
+  }
+  .badge-green { background: #1a3a2a; color: var(--green); }
+  .badge-red { background: #3a1a1a; color: var(--red); }
+  .badge-blue { background: #1a1f3a; color: #7b9fff; }
+  .badge-purple { background: #21193a; color: #c084fc; }
+  .badge-orange { background: #3a2612; color: var(--accent3); }
+
+  .big-val {
+    font-family: var(--mono);
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1;
+    margin: 4px 0 2px;
+  }
+
+  .sub-val {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* GPU canvas hidden */
+  #gpu-canvas { display: none; }
+
+  /* Progress bar */
+  .bar-wrap {
+    background: var(--border);
+    border-radius: 4px;
+    height: 5px;
+    margin-top: 6px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    transition: width .8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  /* network */
+  .net-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .net-item {
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .net-label { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+  .net-val { font-family: var(--mono); font-size: 14px; font-weight: 600; }
+
+  /* battery arc */
+  .battery-wrap {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 8px;
+  }
+  .battery-svg { flex-shrink: 0; }
+
+  /* canvas benchmark */
+  #bench-canvas { display: none; }
+
+  /* OS icon map */
+  .os-icon { font-size: 28px; }
+
+  /* status dot */
+  .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+  .dot-green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .dot-red { background: var(--red); }
+  .dot-yellow { background: #fbbf24; }
+
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .6s linear infinite;
+    display: inline-block;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .section-stripe {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    border-radius: 12px 12px 0 0;
+  }
+
+  footer {
+    max-width: 900px;
+    margin: 28px auto 0;
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+
+<canvas id="gpu-canvas" width="1" height="1"></canvas>
+<canvas id="bench-canvas" width="256" height="256"></canvas>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🔬</div>
+    <div class="logo-text">Device<span>Spec</span></div>
+  </div>
+  <button id="scan-btn" onclick="runScan()">
+    <div class="pulse"></div> Rescan
+  </button>
+</header>
+
+<main id="grid"></main>
+
+<footer>Reads real browser APIs — no libraries, no guessing &nbsp;·&nbsp; Data stays on your device</footer>
+
+<script>
+// ─── Helpers ────────────────────────────────────────────
+const el = id => document.getElementById(id);
+const grid = el('grid');
+
+function badge(text, color='blue') {
+  return `<span class="badge badge-${color}">${text}</span>`;
+}
+
+function row(label, value) {
+  return `<div class="row"><span class="row-label">${label}</span><span class="row-value">${value}</span></div>`;
+}
+
+function card(id, icon, title, body, wide=false) {
+  return `
+  <div class="card${wide?' wide':''}" id="card-${id}">
+    <div class="card-header">
+      <div class="card-icon">${icon}</div>
+      <div class="card-title">${title}</div>
+    </div>
+    ${body}
+  </div>`;
+}
+
+function spinner() { return `<span class="spinner"></span>`; }
+
+// ─── GPU Info via WebGL ──────────────────────────────────
+function getGPUInfo() {
+  const c = el('gpu-canvas');
+  let renderer = 'Unknown', vendor = 'Unknown', version = 'Unknown';
+  
+  // Try WebGL2 first, then WebGL1
+  for (const ctx of ['webgl2','webgl','experimental-webgl']) {
+    const gl = c.getContext(ctx);
+    if (!gl) continue;
+    version = ctx === 'webgl2' ? 'WebGL 2.0' : 'WebGL 1.0';
+    
+    // WEBGL_debug_renderer_info
+    const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+    if (dbg) {
+      renderer = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || renderer;
+      vendor   = gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL)   || vendor;
+    }
+    
+    // Extra params
+    const maxTex  = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+    const maxVert = gl.getParameter(gl.MAX_VERTEX_ATTRIBS);
+    const maxUnif = gl.getParameter(gl.MAX_VERTEX_UNIFORM_VECTORS);
+    const aliasedRange = gl.getParameter(gl.ALIASED_LINE_WIDTH_RANGE);
+    const glslVer = gl.getParameter(gl.SHADING_LANGUAGE_VERSION) || '—';
+    
+    // Compute shaders (WebGL2)
+    let computeShaders = 'No';
+    if (ctx === 'webgl2') {
+      const gl2 = gl;
+      computeShaders = gl2.getParameter(gl2.MAX_COMPUTE_WORK_GROUP_COUNT_X) ? 'Yes' : 'No';
+    }
+
+    return { renderer, vendor, version, maxTex, maxVert, maxUnif, glslVer, computeShaders };
+  }
+  return { renderer, vendor, version:'None', maxTex:0, maxVert:0, maxUnif:0, glslVer:'—', computeShaders:'No' };
+}
+
+// ─── CPU Info ──────────────────────────────────────────
+function getCPUInfo() {
+  const cores = navigator.hardwareConcurrency || 1;
+  
+  // Platform via User-Agent hints (if available)
+  let arch = 'Unknown';
+  const ua = navigator.userAgent;
+  if (/arm|aarch/i.test(ua)) arch = 'ARM';
+  else if (/x86_64|x64|WOW64/i.test(ua)) arch = 'x86_64';
+  else if (/x86/i.test(ua)) arch = 'x86';
+  else if (/iPhone|iPad|iPod/i.test(ua)) arch = 'ARM (Apple)';
+  
+  return { cores, arch };
+}
+
+// ─── Memory ────────────────────────────────────────────
+function getMemoryInfo() {
+  const mem = navigator.deviceMemory;
+  const perf = performance.memory;
+  return {
+    device: mem ? mem + ' GB (approx)' : 'Not exposed',
+    heapUsed:  perf ? (perf.usedJSHeapSize / 1048576).toFixed(1) + ' MB' : null,
+    heapTotal: perf ? (perf.totalJSHeapSize / 1048576).toFixed(1) + ' MB' : null,
+    heapLimit: perf ? (perf.jsHeapSizeLimit / 1048576).toFixed(1) + ' MB' : null,
+  };
+}
+
+// ─── Screen & Display ──────────────────────────────────
+function getScreenInfo() {
+  const dpr = window.devicePixelRatio || 1;
+  const logical = `${window.screen.width} × ${window.screen.height}`;
+  const physical = `${Math.round(window.screen.width*dpr)} × ${Math.round(window.screen.height*dpr)}`;
+  const colorDepth = window.screen.colorDepth;
+  const viewport = `${window.innerWidth} × ${window.innerHeight}`;
+  
+  // HDR hint via media query
+  const hdr = window.matchMedia('(dynamic-range: high)').matches;
+  const wideGamut = window.matchMedia('(color-gamut: p3)').matches;
+  const darkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const orientation = screen.orientation?.type || (screen.width > screen.height ? 'landscape' : 'portrait');
+  
+  // Refresh rate (approximate via rAF loop)
+  return { logical, physical, dpr: dpr.toFixed(2), colorDepth, viewport, hdr, wideGamut, darkMode, reducedMotion, orientation };
+}
+
+// ─── OS & Browser ──────────────────────────────────────
+function getOSBrowser() {
+  const ua = navigator.userAgent;
+  
+  let os = 'Unknown', osIcon = '💻';
+  if (/Windows NT 10\.0/.test(ua)) { os = 'Windows 10/11'; osIcon = '🪟'; }
+  else if (/Windows NT 6\.3/.test(ua)) { os = 'Windows 8.1'; osIcon = '🪟'; }
+  else if (/Windows NT 6\.1/.test(ua)) { os = 'Windows 7'; osIcon = '🪟'; }
+  else if (/Windows/.test(ua)) { os = 'Windows'; osIcon = '🪟'; }
+  else if (/iPhone/.test(ua)) { os = 'iOS (iPhone)'; osIcon = '🍎'; }
+  else if (/iPad/.test(ua)) { os = 'iPadOS'; osIcon = '🍎'; }
+  else if (/Mac OS X/.test(ua)) { os = 'macOS'; osIcon = '🍎'; }
+  else if (/Android/.test(ua)) {
+    const v = ua.match(/Android\s([\d.]+)/);
+    os = 'Android' + (v ? ' ' + v[1] : ''); osIcon = '🤖';
+  }
+  else if (/Linux/.test(ua)) { os = 'Linux'; osIcon = '🐧'; }
+  else if (/CrOS/.test(ua)) { os = 'ChromeOS'; osIcon = '🔵'; }
+
+  let browser = 'Unknown', bVer = '';
+  if (/Edg\//.test(ua)) {
+    browser = 'Microsoft Edge'; bVer = ua.match(/Edg\/([\d.]+)/)?.[1] || '';
+  } else if (/OPR\//.test(ua)) {
+    browser = 'Opera'; bVer = ua.match(/OPR\/([\d.]+)/)?.[1] || '';
+  } else if (/Chrome\//.test(ua) && !/Chromium/.test(ua)) {
+    browser = 'Google Chrome'; bVer = ua.match(/Chrome\/([\d.]+)/)?.[1] || '';
+  } else if (/Firefox\//.test(ua)) {
+    browser = 'Mozilla Firefox'; bVer = ua.match(/Firefox\/([\d.]+)/)?.[1] || '';
+  } else if (/Safari\//.test(ua) && !/Chrome/.test(ua)) {
+    browser = 'Safari'; bVer = ua.match(/Version\/([\d.]+)/)?.[1] || '';
+  } else if (/Chromium\//.test(ua)) {
+    browser = 'Chromium'; bVer = ua.match(/Chromium\/([\d.]+)/)?.[1] || '';
+  }
+
+  const lang = navigator.language || navigator.languages?.[0] || '—';
+  const langs = navigator.languages?.join(', ') || lang;
+  const cookieEnabled = navigator.cookieEnabled;
+  const doNotTrack = navigator.doNotTrack === '1';
+  const online = navigator.onLine;
+  const platform = navigator.platform || '—';
+
+  return { os, osIcon, browser, bVer, lang, langs, cookieEnabled, doNotTrack, online, platform, ua };
+}
+
+// ─── Network ───────────────────────────────────────────
+function getNetworkInfo() {
+  const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  if (!conn) return null;
+  return {
+    type: conn.effectiveType || conn.type || '—',
+    downlink: conn.downlink != null ? conn.downlink + ' Mbps' : '—',
+    rtt: conn.rtt != null ? conn.rtt + ' ms' : '—',
+    saveData: conn.saveData,
+  };
+}
+
+// ─── Storage ───────────────────────────────────────────
+async function getStorageInfo() {
+  try {
+    const est = await navigator.storage?.estimate?.();
+    if (!est) return null;
+    const used = (est.usage / 1048576).toFixed(1);
+    const quota = (est.quota / 1073741824).toFixed(2);
+    const pct = ((est.usage / est.quota) * 100).toFixed(1);
+    return { used: used + ' MB', quota: quota + ' GB', pct };
+  } catch { return null; }
+}
+
+// ─── Battery ───────────────────────────────────────────
+async function getBatteryInfo() {
+  try {
+    const bat = await navigator.getBattery?.();
+    if (!bat) return null;
+    return {
+      level: Math.round(bat.level * 100),
+      charging: bat.charging,
+      chargingTime: bat.chargingTime,
+      dischargingTime: bat.dischargingTime,
+    };
+  } catch { return null; }
+}
+
+// ─── Input Devices ─────────────────────────────────────
+function getInputInfo() {
+  const touch = navigator.maxTouchPoints || 0;
+  const pointer = window.matchMedia('(pointer: fine)').matches ? 'Mouse/Trackpad' :
+                  window.matchMedia('(pointer: coarse)').matches ? 'Touch' : 'None';
+  const hover   = window.matchMedia('(hover: hover)').matches ? 'Yes' : 'No';
+  const gamepad = !!navigator.getGamepads;
+  return { touch, pointer, hover, gamepad };
+}
+
+// ─── Features Support ──────────────────────────────────
+function getFeatures() {
+  return {
+    serviceWorker: 'serviceWorker' in navigator,
+    indexedDB:     'indexedDB' in window,
+    webAssembly:   typeof WebAssembly !== 'undefined',
+    webGPU:        'gpu' in navigator,
+    sharedWorker:  typeof SharedWorker !== 'undefined',
+    audioCtx:      typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined',
+    webRTC:        typeof RTCPeerConnection !== 'undefined',
+    geolocation:   'geolocation' in navigator,
+    clipboard:     'clipboard' in navigator,
+    notifications: 'Notification' in window,
+    bluetooth:     'bluetooth' in navigator,
+    usb:           'usb' in navigator,
+    webShare:      'share' in navigator,
+    vibration:     'vibrate' in navigator,
+    wakeLock:      'wakeLock' in navigator,
+  };
+}
+
+// ─── Canvas Benchmark (FPS estimate) ──────────────────
+function runBenchmark() {
+  return new Promise(resolve => {
+    const c = el('bench-canvas');
+    const ctx = c.getContext('2d');
+    let frames = 0;
+    const start = performance.now();
+    const duration = 500; // ms
+
+    function frame() {
+      // draw something complex per frame
+      for (let i = 0; i < 200; i++) {
+        ctx.beginPath();
+        ctx.arc(Math.random()*256, Math.random()*256, Math.random()*30+5, 0, Math.PI*2);
+        ctx.fillStyle = `hsl(${Math.random()*360},70%,60%)`;
+        ctx.fill();
+      }
+      frames++;
+      if (performance.now() - start < duration) {
+        requestAnimationFrame(frame);
+      } else {
+        const fps = Math.round(frames / ((performance.now() - start) / 1000));
+        resolve(fps);
+      }
+    }
+    requestAnimationFrame(frame);
+  });
+}
+
+// ─── Refresh Rate via rAF ──────────────────────────────
+function measureRefreshRate() {
+  return new Promise(resolve => {
+    let frames = 0;
+    const start = performance.now();
+    function tick(ts) {
+      frames++;
+      if (ts - start < 1000) requestAnimationFrame(tick);
+      else resolve(Math.round(frames));
+    }
+    requestAnimationFrame(tick);
+  });
+}
+
+// ─── Render cards ──────────────────────────────────────
+async function runScan() {
+  grid.innerHTML = '<div class="card wide" style="text-align:center;padding:40px;color:var(--muted);font-size:14px">Scanning device… <span class="spinner" style="vertical-align:middle;margin-left:8px"></span></div>';
+
+  // Collect sync data
+  const gpu  = getGPUInfo();
+  const cpu  = getCPUInfo();
+  const mem  = getMemoryInfo();
+  const scr  = getScreenInfo();
+  const os   = getOSBrowser();
+  const net  = getNetworkInfo();
+  const inp  = getInputInfo();
+  const feat = getFeatures();
+
+  // Async data
+  const [storage, battery, fps, hz] = await Promise.all([
+    getStorageInfo(),
+    getBatteryInfo(),
+    runBenchmark(),
+    measureRefreshRate(),
+  ]);
+
+  // ── Build HTML ──────────────────────────────────────
+  let html = '';
+
+  // ── OS & Browser ──
+  html += card('os', os.osIcon, 'System', `
+    <div style="margin-bottom:12px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:2px">${os.os}</div>
+      <div style="font-size:12px;color:var(--muted)">${os.browser} ${os.bVer}</div>
+    </div>
+    ${row('Platform', os.platform)}
+    ${row('Language', os.lang)}
+    ${row('Languages', `<span title="${os.langs}" style="cursor:pointer">${os.lang} +${(navigator.languages?.length||1)-1} more</span>`)}
+    ${row('Online', os.online ? badge('Online','green') : badge('Offline','red'))}
+    ${row('Cookies', os.cookieEnabled ? badge('Enabled','green') : badge('Disabled','red'))}
+    ${row('Do Not Track', os.doNotTrack ? badge('On','purple') : badge('Off','blue'))}
+  `);
+
+  // ── CPU ──
+  const coreColor = cpu.cores >= 8 ? 'green' : cpu.cores >= 4 ? 'blue' : 'orange';
+  html += card('cpu', '🔲', 'CPU', `
+    <div class="big-val">${cpu.cores}</div>
+    <div class="sub-val">Logical cores (threads)</div>
+    <div style="margin-top:14px">
+      ${row('Architecture', badge(cpu.arch, 'purple'))}
+    </div>
+  `);
+
+  // ── Memory ──
+  html += card('mem', '🧩', 'Memory', `
+    <div class="big-val">${mem.device}</div>
+    <div class="sub-val">Device RAM (approx, privacy-bucketed)</div>
+    ${mem.heapUsed ? `
+    <div style="margin-top:14px">
+      ${row('JS Heap Used', mem.heapUsed)}
+      ${row('JS Heap Total', mem.heapTotal)}
+      ${row('JS Heap Limit', mem.heapLimit)}
+    </div>` : ''}
+  `);
+
+  // ── GPU ──
+  html += card('gpu', '🎮', 'Graphics', `
+    <div style="font-size:12px;font-family:var(--mono);color:var(--accent2);word-break:break-word;margin-bottom:4px">${gpu.renderer}</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:12px">${gpu.vendor}</div>
+    ${row('WebGL', badge(gpu.version, gpu.version.includes('2') ? 'green' : 'blue'))}
+    ${row('GLSL Version', gpu.glslVer)}
+    ${row('Max Texture', gpu.maxTex ? gpu.maxTex + 'px' : '—')}
+    ${row('Max Vertex Attribs', gpu.maxVert || '—')}
+    ${row('Compute Shaders', badge(gpu.computeShaders, gpu.computeShaders === 'Yes' ? 'green' : 'red'))}
+    ${row('WebGPU', badge(feat.webGPU ? 'Supported' : 'Not supported', feat.webGPU ? 'green' : 'red'))}
+  `);
+
+
+  // ── Screen ──
+  html += card('screen', '🖥️', 'Screen & Display', `
+    ${row('Logical Res', scr.logical)}
+    ${row('Physical Res', scr.physical)}
+    ${row('Device Pixel Ratio', scr.dpr)}
+    ${row('Color Depth', scr.colorDepth + '-bit')}
+    ${row('Refresh Rate', hz + ' Hz (measured)')}
+    ${row('Viewport', scr.viewport)}
+    ${row('Orientation', scr.orientation)}
+    ${row('HDR', badge(scr.hdr ? 'Yes' : 'No', scr.hdr ? 'green' : 'orange'))}
+    ${row('Wide Gamut (P3)', badge(scr.wideGamut ? 'Yes' : 'No', scr.wideGamut ? 'green' : 'orange'))}
+    ${row('Dark Mode', badge(scr.darkMode ? 'Active' : 'Light', scr.darkMode ? 'purple' : 'blue'))}
+    ${row('Reduced Motion', badge(scr.reducedMotion ? 'Requested' : 'No', scr.reducedMotion ? 'orange' : 'green'))}
+  `);
+
+  // ── Input ──
+  html += card('input', '🖱️', 'Input & Touch', `
+    ${row('Pointer Type', badge(inp.pointer, inp.pointer === 'Mouse/Trackpad' ? 'blue' : inp.pointer === 'Touch' ? 'orange' : 'red'))}
+    ${row('Touch Points', inp.touch > 0 ? badge(inp.touch + ' points', 'green') : badge('No touch', 'red'))}
+    ${row('Hover Support', badge(inp.hover, inp.hover === 'Yes' ? 'green' : 'orange'))}
+    ${row('Gamepad API', badge(inp.gamepad ? 'Yes' : 'No', inp.gamepad ? 'green' : 'red'))}
+    ${row('Vibration API', badge(feat.vibration ? 'Yes' : 'No', feat.vibration ? 'green' : 'red'))}
+  `);
+
+  // ── Network ──
+  if (net) {
+    const typeColor = { '4g':'green', '3g':'orange', '2g':'red', 'slow-2g':'red' };
+    html += card('net', '📡', 'Network', `
+      <div class="net-grid">
+        <div class="net-item">
+          <div class="net-label">Type</div>
+          <div class="net-val">${badge(net.type.toUpperCase(), typeColor[net.type]||'blue')}</div>
+        </div>
+        <div class="net-item">
+          <div class="net-label">Downlink</div>
+          <div class="net-val" style="color:var(--accent2)">${net.downlink}</div>
+        </div>
+        <div class="net-item">
+          <div class="net-label">RTT</div>
+          <div class="net-val" style="color:var(--accent3)">${net.rtt}</div>
+        </div>
+        <div class="net-item">
+          <div class="net-label">Data Saver</div>
+          <div class="net-val">${net.saveData ? badge('On','orange') : badge('Off','blue')}</div>
+        </div>
+      </div>
+    `);
+  }
+
+  // ── Storage ──
+  if (storage) {
+    html += card('storage', '💾', 'Storage Quota', `
+      ${row('Used', storage.used)}
+      ${row('Quota', storage.quota)}
+      ${row('Usage', storage.pct + '%')}
+      <div class="bar-wrap"><div class="bar-fill" id="storage-bar" style="width:0"></div></div>
+    `);
+  }
+
+  // ── Battery ──
+  if (battery) {
+    const lvl = battery.level;
+    const bColor = lvl >= 60 ? 'green' : lvl >= 20 ? 'orange' : 'red';
+    const fmtTime = s => {
+      if (!isFinite(s) || s === 0) return '—';
+      const m = Math.round(s/60);
+      return m >= 60 ? `${Math.floor(m/60)}h ${m%60}m` : m + ' min';
+    };
+    html += card('bat', '🔋', 'Battery', `
+      <div class="battery-wrap">
+        <svg class="battery-svg" width="64" height="64" viewBox="0 0 64 64">
+          <circle cx="32" cy="32" r="26" fill="none" stroke="#1e1e2e" stroke-width="6"/>
+          <circle cx="32" cy="32" r="26" fill="none"
+            stroke="${lvl >= 60 ? 'var(--green)' : lvl >= 20 ? 'var(--accent3)' : 'var(--red)'}"
+            stroke-width="6"
+            stroke-dasharray="${2*Math.PI*26}"
+            stroke-dashoffset="${2*Math.PI*26*(1 - lvl/100)}"
+            stroke-linecap="round"
+            transform="rotate(-90 32 32)"/>
+          <text x="32" y="37" text-anchor="middle" font-family="var(--mono)" font-size="14" font-weight="700"
+            fill="${lvl >= 60 ? 'var(--green)' : lvl >= 20 ? 'var(--accent3)' : 'var(--red)'}">${lvl}%</text>
+        </svg>
+        <div>
+          ${row('Status', badge(battery.charging ? '⚡ Charging' : '🔋 Discharging', battery.charging ? 'green' : 'blue'))}
+          ${battery.charging
+            ? row('Full in', fmtTime(battery.chargingTime))
+            : row('Empty in', fmtTime(battery.dischargingTime))
+          }
+        </div>
+      </div>
+    `);
+  }
+
+  // ── Canvas Benchmark ──
+  const fpsBadge = fps > 100 ? badge(fps+' FPS', 'green')
+                 : fps > 50  ? badge(fps+' FPS', 'blue')
+                 : fps > 30  ? badge(fps+' FPS', 'orange')
+                 :             badge(fps+' FPS', 'red');
+  html += card('bench', '⚡', 'Render Benchmark', `
+    <div style="margin-bottom:8px;font-size:11px;color:var(--muted)">200 arcs × N frames in 500ms via Canvas 2D</div>
+    <div class="big-val">${fps} <span style="font-size:14px;color:var(--muted)">FPS</span></div>
+    <div class="sub-val" style="margin-top:4px">${
+      fps > 100 ? '🚀 Excellent GPU/CPU throughput' :
+      fps > 50  ? '✅ Good rendering performance' :
+      fps > 30  ? '⚠️ Moderate — some lag expected' :
+                  '🐢 Limited rendering speed'
+    }</div>
+  `);
+
+  // ── Features ──
+  const featMap = {
+    'Service Worker':  feat.serviceWorker,
+    'IndexedDB':       feat.indexedDB,
+    'WebAssembly':     feat.webAssembly,
+    'WebRTC':          feat.webRTC,
+    'Audio API':       feat.audioCtx,
+    'Web Share':       feat.webShare,
+    'Notifications':   feat.notifications,
+    'Geolocation':     feat.geolocation,
+    'Clipboard API':   feat.clipboard,
+    'Bluetooth':       feat.bluetooth,
+    'Web USB':         feat.usb,
+    'Wake Lock':       feat.wakeLock,
+    'Shared Worker':   feat.sharedWorker,
+    'WebGPU':          feat.webGPU,
+    'Vibration':       feat.vibration,
+  };
+  let featHTML = '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:4px">';
+  for (const [name, ok] of Object.entries(featMap)) {
+    featHTML += `<span class="badge badge-${ok?'green':'red'}" style="display:flex;align-items:center;gap:4px">
+      <span class="dot dot-${ok?'green':'red'}"></span>${name}
+    </span>`;
+  }
+  featHTML += '</div>';
+  html += card('feat', '🧪', 'Browser Features', featHTML, true);
+
+  // ── User Agent ──
+  html += card('ua', '📋', 'Raw User Agent', `
+    <div style="font-family:var(--mono);font-size:11px;color:var(--muted);word-break:break-all;line-height:1.7">${os.ua}</div>
+  `, true);
+
+  grid.innerHTML = html;
+
+  // animate storage bar
+  if (storage) {
+    setTimeout(() => {
+      const bar = el('storage-bar');
+      if (bar) bar.style.width = storage.pct + '%';
+    }, 200);
+  }
+}
+
+// Auto-run on load
+runScan();
+</script>
+</body>
+</html>
